@@ -1,2 +1,4 @@
 testing/
 *.ipynb
+__pycache__
+*.whl
