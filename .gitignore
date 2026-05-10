@@ -1,4 +1,7 @@
 testing/
 *.ipynb
 __pycache__
-*.whl
+install/
+build/
+log/
+.venv

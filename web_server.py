@@ -5,8 +5,6 @@ app = Flask(__name__)
 
 cap = VideoCapture(0)
 
-# cap.set(CAP_PROP_FRAME_HEIGHT, 1920)
-# cap.set(CAP_PROP_FRAME_WIDTH, 1080)
 cap.set(CAP_PROP_FOURCC, VideoWriter_fourcc(*'MJPG'))
 
 def gen(camera: VideoCapture):
