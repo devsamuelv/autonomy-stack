@@ -241,7 +241,7 @@
         "flox": "flox",
         "nix-ros-overlay": "nix-ros-overlay",
         "nixpkgs": [
-          "nix-ros-overlay",
+          "flox",
           "nixpkgs"
         ],
         "pyproject-build-systems": "pyproject-build-systems",

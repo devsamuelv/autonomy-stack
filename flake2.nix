@@ -1,9 +1,9 @@
 {
   inputs = rec {
     nix-ros-overlay.url = "github:lopsided98/nix-ros-overlay/master";
-    flox.url = "github:flox/flox";
+    nixpkgs.follows = "nix-ros-overlay/nixpkgs";  # IMPORTANT!!!
 
-    nixpkgs.follows = "flox/nixpkgs";  # IMPORTANT!!!
+    flox.url = "github:flox/flox";
 
     pyproject-nix.url = "github:pyproject-nix/pyproject.nix";
     pyproject-nix.inputs.nixpkgs.follows = "nix-ros-overlay/nixpkgs";
@@ -38,42 +38,46 @@
       };
 
       pkgs = import nixpkgs {
-        overlays = [ nix-ros-overlay.overlays.default ];
-        config.allowUnfree = true;
-        inherit system;
+          config.allowUnfree = true;
+          inherit system;
+          overlays = [ nix-ros-overlay.overlays.default ];
+        };
+
+      project = pyproject-nix.lib.project.loadPyproject {
+        # Read & unmarshal pyproject.toml relative to this project root.
+        # projectRoot is also used to set `src` for renderers such as buildPythonPackage.
+        projectRoot = ./.;
       };
 
-      pythonSets = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-          python = pkgs.python3;
-        in
-        (pkgs.callPackage pyproject-nix.build.packages {
-          inherit python;
-        }).overrideScope
-          (
-            lib.composeManyExtensions [
-              pyproject-build-systems.overlays.wheel
-              overlay
-            ]
-          )
-      );
+      # We are using the default nixpkgs Python3 interpreter & package set.
+      #
+      # This means that you are purposefully ignoring:
+      # - Version bounds
+      # - Dependency sources (meaning local path dependencies won't resolve to the local path)
+      #
+      # To use packages from local sources see "Overriding Python packages" in the nixpkgs manual:
+      # https://nixos.org/manual/nixpkgs/stable/#reference
+      #
+      # Or use an overlay generator such as uv2nix:
+      # https://github.com/pyproject-nix/uv2nix
+      python = pkgs.python3;
       in {
         devShells.default = 
-        let
-          # pkgs = nixpkgs.legacyPackages.${system};
-          pythonSet = pythonSets.${system}.overrideScope editableOverlay;
-          virtualenv = pythonSet.mkVirtualEnv "hello-world-dev-env" workspace.deps.all;
-        in pkgs.mkShell
+                  let
+          # Returns a function that can be passed to `python.withPackages`
+          arg = project.renderers.withPackages { inherit python; };
+
+          # Returns a wrapped environment (virtualenv like) with all our packages
+          pythonEnv = python.withPackages arg;
+
+        in
+
+          pkgs.mkShell
          {
           name = "Autonomy-Stack";
           packages = [
             pkgs.colcon
-            pkgs.cudaPackages.cudatoolkit
-            pkgs.cudaPackages.cuda_cudart
-            virtualenv
-            pkgs.uv
+            pythonEnv
             # ... other non-ROS packages
             (with pkgs.rosPackages.humble; buildEnv {
               paths = [
